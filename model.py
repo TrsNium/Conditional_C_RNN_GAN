@@ -55,7 +55,7 @@ class model():
             sess.run(tf.global_variables_initializer())
         
             if self.args.pretraining and not self.args.pre_train_done:
-                print("started pre-training")
+                print("pre-training開始")
                 saver_ = tf.train.Saver(tf.global_variables())
                 
                 feches = {
@@ -87,19 +87,18 @@ class model():
                         out = vals["out"]
                         out[out > 127] = 127
                         out = np.transpose(out, (0,2,1)).astype(np.int16) 
-                        #print(np.max(out, axis=1))
                         [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
                     if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.pretrain_itrs,"     d_loss:",d_loss_/self.args.pretrain_itrs)
                     if itr % 200 == 0:saver_.save(sess, self.args.pre_train_path)
-                print("finished pre-training")
+                print("pre trainingおわり")
             elif self.args.pretraining and self.args.pre_train_done:
                 if not os.path.exists(self.args.pre_train_path):
-                    print("not exits pretrain check point! damn shit byebye;)")
+                    print("checkpoint がない，始めからやり直し")
                     return
 
                 saver_ = tf.train.Saver(tf.get_collection(tf.GraphKeys.VARIABLES, scope='Generator'))
                 saver_.restore(sess, self.args.pre_train_path)
-                print("finished restoring check point.")                
+                print("restoreおわり")                
             
             saver = tf.train.Saver(tf.global_variables())
             for itr_ in range(self.args.train_itrs):
