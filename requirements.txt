@@ -1,0 +1,15 @@
+backports.weakref==1.0rc1
+bleach==1.5.0
+greenlet==0.4.12
+html5lib==0.9999999
+jedi==0.11.1
+Markdown==2.6.11
+msgpack-python==0.5.1
+neovim==0.2.0
+numpy==1.14.0
+parso==0.1.1
+protobuf==3.5.1
+six==1.11.0
+tensorflow==1.2.1
+tensorflow-gpu==1.2.1
+Werkzeug==0.14.1
