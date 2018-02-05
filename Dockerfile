@@ -1,13 +1,16 @@
 FROM nvidia/cuda:8.0-cudnn5-runtime
 
 MAINTAINER TrsNium
-                                             
-COPY requirements.txt $HOME/
-COPY data/ $HOME/
+
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+
+#RUN mkdir /root/data
+COPY requirements.txt /root/
+COPY data /root/
 
 RUN apt-get -y update
-RUN apt-get -y upgrade
-RUN apt-get -y install git libssl-dev build-essentiald
+RUN apt-get -y install git libssl-dev software-properties-common python-software-properties  build-essential
+
 
 RUN apt-get -y install software-properties-common
 RUN add-apt-repository -y ppa:neovim-ppa/unstable
@@ -24,4 +27,7 @@ RUN rm -r ~/nvim_config
 RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv
 RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 RUN echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-RUN echo 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
+RUN echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
+
+RUN git clone https://github.com/TrsNium/Conditional_C_RNN_GAN.git ~/Conditional_C_RNN_GAN
+RUN mv ~/genre-* ~/Conditional_C_RNN_GAN/data/
