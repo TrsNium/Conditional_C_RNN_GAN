@@ -5,8 +5,7 @@ MAINTAINER TrsNium
 COPY requirements.txt $HOME/
 COPY data/ $HOME/
 
-RUN apt-get -y update
-RUN apt-get -y upgrade
+RUN apt-get -y update 
 RUN apt-get -y install git libssl-dev build-essentiald
 
 RUN apt-get -y install software-properties-common
