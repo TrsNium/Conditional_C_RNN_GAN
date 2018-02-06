@@ -19,14 +19,13 @@ class Generator():
             self.state_ = cell_.zero_state(batch_size=args.batch_size, dtype=tf.float32)
             t_state_ = self.state_
             outputs = []
-            with tf.variable_scope("rnn_in_dense") as i_scope:
+            with tf.variable_scope("rnn") as rnn_scope:
                 for t_ in range(args.max_time_step):
                     if t_ != 0:
-                        i_scope.reuse_variables()
+                        rnn_scope.reuse_variables()
                 
                     input_ = tf.concat([z_inputs[:,t_,:], l_inputs], axis=-1)
                     rnn_input_ = tf.layers.dense(input_, args.gen_rnn_input_size, tf.nn.relu, name="RNN_INPUT_DENSE")
-                    _ = tf.layers.dense(x, args.gen_rnn_input_size, tf.nn.relu, name="RNN_PRE_INPUT_DENSE")
                     rnn_output_, t_state_ = cell_(rnn_input_, t_state_)
                     output_ = tf.layers.dense(rnn_output_, args.vocab_size, name="RNN_OUT_DENSE")
                     outputs.append(output_)
@@ -38,7 +37,7 @@ class Generator():
             self.reg_loss = args.reg_constant * sum(reg_losses)
 
     def _logits(self):
-        return self.outputs, self.state_
+        return self.outputs, self.final_state, self.reg_loss
 
 class Discriminator():
     def __init__(self, args, x, label, name="Discriminator", reuse=False):
@@ -79,7 +78,6 @@ class Discriminator():
                     rnn_out = tf.concat([rnn_output[0][:,t_,:], rnn_output[1][:,t_,:]], axis=-1)
                     logits.append(tf.layers.dense(rnn_out, 1, name="rnn_out_dense"))
             self.logits = tf.convert_to_tensor(logits)
-
     
     def _logits(self):
         return self.logits, self.final_state

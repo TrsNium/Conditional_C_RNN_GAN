@@ -6,7 +6,6 @@ import numpy as np
 import warnings
 import random
 
-
 class model():
     def __init__(self, args):
         self.args = args
@@ -14,24 +13,25 @@ class model():
         self.pre_train_labels = tf.placeholder(tf.float32, [None, args.max_time_step, args.vocab_size], "pre_train_labels")
         self.real_x = tf.placeholder(tf.float32, [None, args.max_time_step, args.vocab_size], "real_inputs")
         self.z_inputs = tf.placeholder(tf.float32, [None, args.max_time_step, args.z_dim])
-        self.l_inputs = tf.placeholder(tf.float32, [None, args.max_time_step, args.l_dim])
+        self.l_inputs = tf.placeholder(tf.float32, [None, args.l_dim])
 
-        dis = Discriminator(args)
-        self.gen = Generator(args, self.z_inputs, self.l_inputs, self.l_inputs)
+        #pre training G
+        self.p_gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse=False)
+        self.p_g_logits, self.p_g_state, self.p_r_loss = self.p_gen._logits()
+        self.p_g_loss = tf.reduce_mean(tf.squared_difference(self.p_g_logits, self.real_x)) + self.p_r_loss
         
-        #pre training
-        self.p_g_loss, self.p_state, self.p_out = self.gen._pre_train(self.pre_train_labels)
-        p_d_logits = dis._logits(self.pre_train_labels, None, True, False)
-        self.p_d_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=p_d_logits, labels=tf.ones_like(p_d_logits)))
-        
-        #train GAN
-        self.fake, self.f_state = self.gen._logits()
-        dis_fake, dis_real = dis._logits(self.fake, self.real, reuse=True) 
-        dis_fake = tf.reshape(dis_fake, [-1, 1])
-        dis_real = tf.reshape(dis_real, [-1, 1])
+        #training models
+        self.gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse = True)
+        self.fake_x, self.g_state, _ = self.gen._logits()
 
-        self.d_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_real, labels=tf.ones_like(dis_real)) + tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_fake, labels=tf.zeros_like(dis_fake)))
-        self.g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_fake, labels=tf.ones_like(dis_fake)))
+        self.real_dis = Discriminator(args, self.real_x, self.l_inputs, name="Discriminator", reuse=False)
+        self.fake_dis = Discriminator(args, self.fake_x, self.l_inputs, name="Discriminator", reuse=True)
+        
+        d_r, self.d_r_state = self.real_dis._logits()
+        d_f, self.d_f_state = self.fake_dis._logits()
+
+        
+
 
         #tf.summary.scalar("pre_train_loss", self.p_g_loss)
         tf.summary.scalar("discriminator_loss", self.d_loss)
