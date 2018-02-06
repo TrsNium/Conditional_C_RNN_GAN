@@ -72,17 +72,17 @@ class model():
                     "final_state": self.p_gen.p_g_state
                 }
 
-                for itr in range(self.args.pretrain_itrs):
+                for itr, (data, label) in enumerate(train_func()):
                     inputs_, labels_ = mk_pretrain_batch(self.args.step_num, self.args.input_norm)
                     g_loss_ = 0.
                     d_loss_ = 0.
                     state_ = sess.run(self.gen.state_)
-                    for step in range(self.args.step_num):
+                    for step in range(self.args.step_num-1):
                         feed_dict ={}
                         feed_dict = self._feed_state(self.gen_state_, state_, feed_dict)
-                        feed_dict[self.pre_train_inputs] = inputs_[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
-                        feed_dict[self.pre_train_labels] = labels_[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
-                        
+                        feed_dict[self.real_x] = data[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
+                        feed_dict[self.l_inputs] = label
+                        feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
                         vals = sess.run(feches, feed_dict)    
                         state_ = vals["final_state"]
                         
@@ -94,6 +94,7 @@ class model():
                     
                     if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.pretrain_itrs,"     d_loss:",d_loss_/self.args.pretrain_itrs)
                     if itr % 200 == 0:saver_.save(sess, self.args.pre_train_path)
+                    if itr == self.args.pretrain_itrs: break
                 print("pre trainingおわり")
             elif self.args.pretraining and self.args.pre_train_done:
                 if not os.path.exists(self.args.pre_train_path):
@@ -105,21 +106,20 @@ class model():
                 print("restoreおわり")                
             
             saver = tf.train.Saver(tf.global_variables())
-            for itr_ in range(self.args.train_itrs):
+            for itr, (data, label) in enumerate(train_func()):
                 g_loss, d_loss = [0., 0.]
-                real, label = mk_batch(self.args.step_num, self.args.input_norm)
                 
                 g_state_ = sess.run(self.gen.state_)
                 f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
                 r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
-                for step in range(self.args.step_num):
+                for step in range(self.args.step_num-1):
                     feed_dict = {}
                     feed_dict = self._feed_state(self.gen.state_, state_, feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
-                    feed_dict[self.real_x] =  real[:, step*self.args.max_time_step:(step+1)*args.max_time_step,:]
+                    feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*args.max_time_step,:]
                     feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
                     feed_dict[self.l_inputs] = label
 
@@ -129,15 +129,18 @@ class model():
                     g_loss += g_loss_
                     d_loss += d_loss_
             
-                g_loss /= self.args.max_time_step_num
-                d_loss /= self.args.max_time_step_num
-                if itr_ % 5 == 0:
+                g_loss /= self.args.step_num
+                d_loss /= self.args.step_num
+                if itr % 5 == 0:
                     print(itr_, ":   g_loss:", g_loss, "   d_loss:", d_loss)
                     train_graph.add_summary(summary, itr_)
 
-                if itr_ % 20 == 0:
+                if itr % 20 == 0:
                     saver.save(sess, self.args.train_path+"model.ckpt")
                     print("-------------------saved model---------------------")
+                
+                if itr == self.args.train_itrs:
+                    break
 
     def generate(self):
         config = tf.ConfigProto()
