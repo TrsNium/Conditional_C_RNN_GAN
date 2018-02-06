@@ -4,7 +4,6 @@ import numpy as np
 import re
 import random
 
-
 def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
     '''Convert a Piano Roll array into a PrettyMidi object
      with a single instrument.
@@ -61,96 +60,52 @@ def read_midi_as_piano_roll(fn, fs):
     p_r = p_m.get_piano_roll(fs)
     return np.array(p_r)
 
-def mk_index():
-    dir = ["data/"+dir for dir in os.listdir("data") if re.match("genre-", dir)]
-    content = "\n".join(dir)
-    with open("data/index.txt", "w") as fs:
+def pre_processing(data_path, fs, step_num, max_time_step, range_):
+    roll = read_midi_as_piano_roll(data_path, fs) 
+    data_len = time_step*max_time_step
+    empty = np.empty(shape=[0, range_])
+    
+    print(roll.shape)
+    while True:
+        if not empty.shape[0] < data_len:
+            break
+
+        empty = np.append(empty, roll, axis=0)
+    return empty[:data_len,:]
+        
+def mk_index(data_dir="./data", save_path="./data/index.txt"):
+    dir_ = [dir_ for dir_ in os.listdir(data_dir) if re.match("genre-", dir_)]
+    content = "\n".join(dir_)
+    with open(save_path, "w") as fs:
         fs.write(content)
 
-def read_index():
-    with open("data/index.txt", "r") as fs:
+def read_index(read_path="./data/index.txt"):
+    with open(read_path, "r") as fs:
         lines = fs.readlines()
     return [line.split("\n")[0] for line in lines]
 
-def mk_batch_func_not_pre_train(batch_size, time_step, fs=100):
-    if not os.path.exists("data/index.txt"):
-        mk_index()
-        dir = read_index()
-    else:
-        dir = read_index()
+def mk_label(label_size, c):
+    content = np.zeros(label_size)
+    content[c] = 1
+    return content
 
-    atribute_data_path = [path for i,path in enumerate(list(map(os.listdir,dir)))]
-    atribute_size = len(dir)
-    
-    merged_data = []
-    for i,atribute_datas in enumerate(atribute_data_path):
-        for data in atribute_datas:
-            merged_data.append(dir[i]+"/"+data)
-    
-    def mk_batch_func(max_time_step_num, norm=True):
-        r = []
-        atribute = []
-        for _ in range(batch_size):
-            p_r = None
-            while True:
-                try:
-                    path = random.choice(merged_data)
-                    p_r = read_midi_as_piano_roll(path, fs)
-                    if max_time_step_num*time_step > p_r.shape[1]:
-                        print(p_r.shape)
-                        continue
-                    break
-                except:
-                    continue
-            
-            p_r = p_r/np.max(p_r) if norm else p_r/np.max(p_r) *127
+def mk_train_func(batch_size, step_num, max_time_step, fs, range_, data_dir="./data", index_path="./data/index.txt"):
+    if not os.path.exists(index_path): mk_index(data_dir, index_path)
+    indexes = read_index(index_pathsss)
+    label_size = len(indexes)
 
-            r.append(p_r[:,:time_step*max_time_step_num])
-            init_ =  [0]*atribute_size
-            init_[dir.index("/".join(path.split("/")[:2]))] = 1
-            atribute.append(init_)
+    data_group_by_label = {index: pre_processing(os.listdir(os.path.join(data_dir, index)), fs, step_num, max_time_step, range_) for index in indexes}
     
-        return np.transpose(np.array(r),(0,2,1)), atribute
-    
-    return mk_batch_func
-    
-def mk_batch_func_pre_train(batch_size, time_step, fs=100):
-    if not os.path.exists("data/index.txt"):
-        mk_index()
-        dir = read_index()
-    else:
-        dir = read_index()
-    
-    atribute_data_path = [path for i,path in enumerate(list(map(os.listdir,dir)))]
-    atribute_size = len(dir)
-    
-    merged_data = []
-    for i,atribute_datas in enumerate(atribute_data_path):
-        for data in atribute_datas:
-            merged_data.append(dir[i]+"/"+data)
+    def train_func():
+        while True:
+            labels = []
+            data = []
+            choiced_indexes = random.sample(range(batch_size), k=batch_size)
+            [labels.append(mk_label(label_size, c)) for c in choiced_indexes]
 
-    def mk_batch_func(step_num, norm=True):
-        x = []
-        label = []
-        for _ in range(batch_size):
-            p_r = None
-            while True:
-                try:
-                    path = random.choice(merged_data)
-                    p_r = read_midi_as_piano_roll(path, fs)
-                    if max_time_step_num*time_step+1> p_r.shape[1]:
-                        continue
-                    break
-                except:
-                    continue
+            for choiced_index in choiced_indexes:
+                choiced_data_index = random.sample(len(data_group_by_label[indexes[choiced_index]]), k=1)
+                data.append(data_group_by_label[indexes[choiced_index]][choiced_data_index])
 
-            p_r = p_r/np.max(p_r) if norm else p_r/np.max(p_r) *127
-
-            x.append(p_r[:,:time_step*step_num])
-            label.append(p_r[:,:time_step*step_num])
-        return np.transpose(np.array(x), (0,2,1)).astype(np.float32), np.transpose(np.array(label), (0,2,1)).astype(np.float32)
-
-    return mk_batch_func
-
-def n_sigmoid(x):
-    return 1/1-np.exp(-x)
+            yield np.array(data), np.array(labels)
+    return train_func

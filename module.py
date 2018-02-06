@@ -27,7 +27,7 @@ class Generator():
                     input_ = tf.concat([z_inputs[:,t_,:], l_inputs], axis=-1)
                     rnn_input_ = tf.layers.dense(input_, args.gen_rnn_input_size, tf.nn.relu, name="RNN_INPUT_DENSE")
                     rnn_output_, t_state_ = cell_(rnn_input_, t_state_)
-                    output_ = tf.layers.dense(rnn_output_, args.vocab_size, name="RNN_OUT_DENSE")
+                    output_ = tf.layers.dense(rnn_output_, args.range, name="RNN_OUT_DENSE")
                     outputs.append(output_)
        
             self.final_state = t_state_

@@ -10,8 +10,7 @@ class model():
     def __init__(self, args):
         self.args = args
 
-        self.pre_train_labels = tf.placeholder(tf.float32, [None, args.max_time_step, args.vocab_size], "pre_train_labels")
-        self.real_x = tf.placeholder(tf.float32, [None, args.max_time_step, args.vocab_size], "real_inputs")
+        self.real_x = tf.placeholder(tf.float32, [None, args.max_time_step, args.range], "real_inputs")
         self.z_inputs = tf.placeholder(tf.float32, [None, args.max_time_step, args.z_dim])
         self.l_inputs = tf.placeholder(tf.float32, [None, args.l_dim])
 
@@ -109,7 +108,8 @@ class model():
             saver = tf.train.Saver(tf.global_variables())
             for itr_ in range(self.args.train_itrs):
                 g_loss, d_loss = [0., 0.]
-                labels, atribute = mk_batch(self.args.max_time_step_num, self.args.input_norm)
+                real, label = mk_batch(self.args.step_num, self.args.input_norm)
+                
                 g_state_ = sess.run(self.gen.state_)
                 f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
                 r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
@@ -120,6 +120,9 @@ class model():
                     feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
+                    feed_dict[self.real_x] =  real[:, step*self.args.max_time_step:(step+1)*args.max_time_step,:]
+                    feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
+                    feed_dict[self.l_inputs] = label
 
                     g_loss_, g_state_, _ = sess.run([self.g_loss, self.gen.final_state, optimizer_g], feed_dict)
                     d_loss_, f_d_state_, r_d_state, _ = sess.run([self.d_loss, self.d_f_state, self.d_r_state, optimizer_d], feed_dict)
