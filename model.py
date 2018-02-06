@@ -39,6 +39,12 @@ class model():
         tf.summary.scalar("pre_train_loss", self.p_g_loss)
         tf.summary.scalar("discriminator_loss", self.d_loss)
         tf.summary.scalar("generator_loss", self.g_loss)
+    
+    def _feed_state(self, t_state, state, feed_dict):
+        for i, (c, h) in enumerate(t_state):
+            feed_dict[c] = state[i].c
+            feed_dict[h] = state[i].h
+        return feed_dict
 
     def train(self):
         optimizer_g_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_g_loss)
@@ -62,9 +68,10 @@ class model():
                 saver_ = tf.train.Saver(tf.global_variables())
                 
                 feches = {
+                    "out": self.p_g_loss
                     "g_loss": self.p_g_loss,
                     "optimizer_g": optimizer_g_p,
-                    "state": self.p_gen.p_g_state
+                    "final_state": self.p_gen.p_g_state
                 }
 
                 for itr in range(self.args.pretrain_itrs):
@@ -72,22 +79,21 @@ class model():
                     g_loss_ = 0.
                     d_loss_ = 0.
                     state_ = sess.run(self.gen.state_)
-                    for step in range(self.args.max_time_step_num):
+                    for step in range(self.args.step_num):
                         feed_dict ={}
-                        for i, (c, h) in enumerate(self.gen.state_):
-                            feed_dict[c] = state_[i].c
-                            feed_dict[h] = state_[i].h
-
+                        feed_dict = self._feed_state(self.gen_state_, state_, feed_dict)
                         feed_dict[self.pre_train_inputs] = inputs_[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
                         feed_dict[self.pre_train_labels] = labels_[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
+                        
                         vals = sess.run(feches, feed_dict)    
-                        state_ = vals["final_state_"]
+                        state_ = vals["final_state"]
+                        
                         g_loss_ += vals["g_loss"]
-                        d_loss_ += vals["d_loss"]
                         out = vals["out"]
                         out[out > 127] = 127
                         out = np.transpose(out, (0,2,1)).astype(np.int16) 
                         [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
+                    
                     if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.pretrain_itrs,"     d_loss:",d_loss_/self.args.pretrain_itrs)
                     if itr % 200 == 0:saver_.save(sess, self.args.pre_train_path)
                 print("pre trainingおわり")
@@ -104,22 +110,23 @@ class model():
             for itr_ in range(self.args.train_itrs):
                 g_loss, d_loss = [0., 0.]
                 labels, atribute = mk_batch(self.args.max_time_step_num, self.args.input_norm)
-                state_ = sess.run(self.gen.state_)
-                for step in range(self.args.max_time_step_num):
+                g_state_ = sess.run(self.gen.state_)
+                f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
+                r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
+                for step in range(self.args.step_num):
                     feed_dict = {}
-                    for i, (c, h) in enumerate(self.gen.state_):
-                        feed_dict[c] = state_[i].c
-                        feed_dict[h] = state_[i].h
+                    feed_dict = self._feed_state(self.gen.state_, state_, feed_dict)
+                    feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
+                    feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
+                    feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
+                    feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
+
+                    g_loss_, g_state_, _ = sess.run([self.g_loss, self.gen.final_state, optimizer_g], feed_dict)
+                    d_loss_, f_d_state_, r_d_state, _ = sess.run([self.d_loss, self.d_f_state, self.d_r_state, optimizer_d], feed_dict)
                     
-                    atribute_ = np.array([[a+[random.random() for _ in range(self.args.random_dim)] for _ in range(self.args.max_time_step)] for a in atribute])
-                    feed_dict[self.real] = labels[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
-                    feed_dict[self.atribute_inputs] = atribute_
-                    
-                    g_loss_, state_, _ = sess.run([self.g_loss, self.gen.final_state, optimizer_g], feed_dict)
-                    d_loss_, _, summary = sess.run([self.d_loss, optimizer_d, merged_summary], feed_dict)
                     g_loss += g_loss_
                     d_loss += d_loss_
-                    #print(sess.run(self.fake, feed_dict))
+            
                 g_loss /= self.args.max_time_step_num
                 d_loss /= self.args.max_time_step_num
                 if itr_ % 5 == 0:
