@@ -129,7 +129,7 @@ def mk_batch_func_pre_train(batch_size, time_step, fs=100):
         for data in atribute_datas:
             merged_data.append(dir[i]+"/"+data)
 
-    def mk_batch_func(max_time_step_num, norm=True):
+    def mk_batch_func(step_num, norm=True):
         x = []
         label = []
         for _ in range(batch_size):
@@ -146,8 +146,8 @@ def mk_batch_func_pre_train(batch_size, time_step, fs=100):
 
             p_r = p_r/np.max(p_r) if norm else p_r/np.max(p_r) *127
 
-            x.append(p_r[:,:time_step*max_time_step_num])
-            label.append(p_r[:,:time_step*max_time_step_num])
+            x.append(p_r[:,:time_step*step_num])
+            label.append(p_r[:,:time_step*step_num])
         return np.transpose(np.array(x), (0,2,1)).astype(np.float32), np.transpose(np.array(label), (0,2,1)).astype(np.float32)
 
     return mk_batch_func

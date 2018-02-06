@@ -63,15 +63,12 @@ class model():
                 
                 feches = {
                     "g_loss": self.p_g_loss,
-                    "d_loss": self.p_d_loss,
                     "optimizer_g": optimizer_g_p,
-                    "optimizer_d": optimizer_d_p,
-                    "final_state_": self.p_state,
-                    "out": self.p_out
+                    "state": self.p_gen.p_g_state
                 }
 
                 for itr in range(self.args.pretrain_itrs):
-                    inputs_, labels_ = mk_pretrain_batch(self.args.max_time_step_num, self.args.input_norm)
+                    inputs_, labels_ = mk_pretrain_batch(self.args.step_num, self.args.input_norm)
                     g_loss_ = 0.
                     d_loss_ = 0.
                     state_ = sess.run(self.gen.state_)
