@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-cudnn5-runtime
+FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu14.04
 
 MAINTAINER TrsNium
 
