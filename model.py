@@ -51,8 +51,7 @@ class model():
         optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss)
         optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss)
          
-        mk_pretrain_batch = mk_batch_func_pre_train(self.args.batch_size, self.args.max_time_step, self.args.fs)
-        mk_batch = mk_batch_func_not_pre_train(self.args.batch_size, self.args.max_time_step, self.args.fs)
+        train_func = mk_train_func(self.args.batch_size, self.args.step_num, self.args.max_time_step, self.args.fs, self.args.range_)
     
         config = tf.ConfigProto(device_count = {'GPU': 1})
         config.gpu_options.allow_growth = True
