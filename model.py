@@ -29,17 +29,20 @@ class model():
         
         d_r, self.d_r_state = self.real_dis._logits()
         d_f, self.d_f_state = self.fake_dis._logits()
-
         
+        d_r = tf.reshape(d_r, [-1, 1])
+        d_f = tf.reshape(d_f, [-1, 1])
 
+        self.d_loss = - tf.reduce_mean(tf.log(d_r)) - tf.reduce_mean(tf.log(tf.ones_like(d_f) - d_f))
+        self.g_loss = tf.reduce_mean(tf.log(tf.ones_like(d_f) - d_f))
 
-        #tf.summary.scalar("pre_train_loss", self.p_g_loss)
+        tf.summary.scalar("pre_train_loss", self.p_g_loss)
         tf.summary.scalar("discriminator_loss", self.d_loss)
         tf.summary.scalar("generator_loss", self.g_loss)
 
     def train(self):
         optimizer_g_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_g_loss)
-        optimizer_d_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_d_loss)
+        #optimizer_d_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_d_loss)
         optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss)
         optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss)
          
