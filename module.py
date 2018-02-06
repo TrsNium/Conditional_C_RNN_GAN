@@ -2,13 +2,13 @@ import tensorflow as tf
 
 
 def define_cell(rnn_size, keep_prob, name):
-    cell_ = tf.contrib.rnn.BasicLSTMCell(rnn_size, state_is_tuple=True, reuse=tf.get_variable_scope().reuse, name)
+    cell_ = tf.contrib.rnn.BasicLSTMCell(rnn_size, state_is_tuple=True, reuse=tf.get_variable_scope().reuse, name=name)
     if keep_prob < 1.:
         cell_ = tf.contrib.rnn.DropoutWrapper(cell_, output_keep_prob=keep_prob)
     return cell_
 
 class Generator():
-    def __init__(self, args, z_inputs=None, l_inputs, name="Generator", reuse=False):
+    def __init__(self, args, z_inputs, l_inputs, name="Generator", reuse=False):
         with tf.variable_scope(name) as scope:
             if reuse:
                 scope.reuse_variables()
@@ -44,7 +44,7 @@ class Discriminator():
         self.name = name
         self.args = args
 
-        with tf.variable_scope(name) as scope
+        with tf.variable_scope(name) as scope:
             if reuse:
                 scope.reuse_variables()
 

@@ -51,7 +51,7 @@ class model():
         optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss)
         optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss)
          
-        train_func = mk_train_func(self.args.batch_size, self.args.step_num, self.args.max_time_step, self.args.fs, self.args.range_)
+        train_func = mk_train_func(self.args.batch_size, self.args.step_num, self.args.max_time_step, self.args.fs, self.args.range)
     
         config = tf.ConfigProto(device_count = {'GPU': 1})
         config.gpu_options.allow_growth = True
@@ -66,7 +66,7 @@ class model():
                 saver_ = tf.train.Saver(tf.global_variables())
                 
                 feches = {
-                    "out": self.p_g_loss
+                    "out": self.p_g_loss,
                     "g_loss": self.p_g_loss,
                     "optimizer_g": optimizer_g_p,
                     "final_state": self.p_gen.p_g_state
@@ -93,7 +93,7 @@ class model():
                         [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
                     
                     if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.pretrain_itrs,"     d_loss:",d_loss_/self.args.pretrain_itrs)
-                    if itr % 200 == 0:saver_.save(sess, self.args.pre_train_path)
+                    if itr % 200 == 0:saver_.save(sess, os.path.join(self.args.pre_train_path, "model.ckpt"))
                     if itr == self.args.pretrain_itrs: break
                 print("pre trainingおわり")
             elif self.args.pretraining and self.args.pre_train_done:
@@ -102,7 +102,7 @@ class model():
                     return
 
                 saver_ = tf.train.Saver(tf.get_collection(tf.GraphKeys.VARIABLES, scope='Generator'))
-                saver_.restore(sess, self.args.pre_train_path)
+                saver_.restore(sess, os.path.join(self.args.pre_train_path, "model.ckpt"))
                 print("restoreおわり")                
             
             saver = tf.train.Saver(tf.global_variables())
