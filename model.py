@@ -175,5 +175,5 @@ class model():
 
             results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)*127
             results[results > 127] = 127
-            piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(0))
+            piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(1))
             return np.transpose(results, (0,2,1))
