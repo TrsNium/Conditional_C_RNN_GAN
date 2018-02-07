@@ -165,21 +165,15 @@ class model():
 
             results = []
             state_ = sess.run(self.gen.state_)
-            for step in range(self.args.max_time_step_num):
+            for step in range(self.args.step_num):
                 feed_dict={}
-                for i, (c, h) in enumerate(self.gen.state_):
-                    feed_dict[c] = state_[i].c
-                    feed_dict[h] = state_[i].h
-             
-                atribute = np.array([[a+[random.random() for _ in range(self.args.random_dim)] for _ in range(self.args.max_time_step)] for a in [self.args.atribute_inputs]*self.args.batch_size])
-                feed_dict[self.atribute_inputs] = atribute
-                print(atribute)
-                fake_, state_ = sess.run([self.fake, self.gen.final_state], feed_dict)
+                feed_dict = self._feed_state(self.gen.state_, state_, feed_dict)
+                feed_dict[self.z_inputs] = np.random.rand(1, self.args.max_time_step, self.args.z_dim)
+                feed_dict[self.l_inputs] = [[0,0,0,0,1]]
+                fake_, state_ = sess.run([self.fake_x, self.gen.final_state], feed_dict)
                 results.append(fake_)
 
-            results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16) 
-            print(results.shape)
-            print(np.max(results , axis=-1))
-            [piano_roll_to_pretty_midi(results[i,:,:]*127, self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(i)) for i in range(self.args.batch_size)]    
-            print("Done check out ./generated_mid/*.mid" )
+            results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)
+            results[results > 127] = 127
+            piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(0))
             return np.transpose(results, (0,2,1))
