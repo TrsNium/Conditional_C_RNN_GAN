@@ -173,7 +173,7 @@ class model():
                 fake_, state_ = sess.run([self.fake_x, self.gen.final_state], feed_dict)
                 results.append(fake_)
 
-            results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)
+            results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)*127
             results[results > 127] = 127
             piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(0))
             return np.transpose(results, (0,2,1))
