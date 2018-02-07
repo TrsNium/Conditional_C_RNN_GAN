@@ -56,13 +56,21 @@ def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
     return pm
 
 def read_midi_as_piano_roll(fn, fs):
+    print(fn)
     p_m = pretty_midi.PrettyMIDI(fn)
     p_r = p_m.get_piano_roll(fs)
-    return np.array(p_r)
+    return np.array(p_r).transpose((1,0))
+
+def check_file(fn):
+    try:
+        p_m = pretty_midi.PrettyMIDI(fn)
+        return True
+    except:
+        return False
 
 def pre_processing(data_path, fs, step_num, max_time_step, range_):
     roll = read_midi_as_piano_roll(data_path, fs) 
-    data_len = time_step*max_time_step
+    data_len = step_num*max_time_step
     empty = np.empty(shape=[0, range_])
     
     print(roll.shape)
@@ -75,6 +83,7 @@ def pre_processing(data_path, fs, step_num, max_time_step, range_):
         
 def mk_index(data_dir="./data", save_path="./data/index.txt"):
     dir_ = [dir_ for dir_ in os.listdir(data_dir) if re.match("genre-", dir_)]
+    dir_ = [d for d in dir_ if not len(os.listdir(os.path.join(data_dir, d))) == 0]
     content = "\n".join(dir_)
     with open(save_path, "w") as fs:
         fs.write(content)
@@ -91,21 +100,22 @@ def mk_label(label_size, c):
 
 def mk_train_func(batch_size, step_num, max_time_step, fs, range_, data_dir="./data", index_path="./data/index.txt"):
     if not os.path.exists(index_path): mk_index(data_dir, index_path)
-    indexes = read_index(index_pathsss)
+    indexes = read_index(index_path)
     label_size = len(indexes)
 
-    data_group_by_label = {index: pre_processing(os.listdir(os.path.join(data_dir, index)), fs, step_num, max_time_step, range_) for index in indexes}
+    data_group_by_label = {index: [pre_processing(os.path.join(data_dir, index, fn), fs, step_num, max_time_step, range_) for fn in os.listdir(os.path.join(data_dir, index)) if check_file(os.path.join(data_dir, index, fn))] for index in indexes}
     
     def train_func():
         while True:
             labels = []
             data = []
-            choiced_indexes = random.sample(range(batch_size), k=batch_size)
+            choiced_indexes = random.sample(range(len(indexes)), k=batch_size)
             [labels.append(mk_label(label_size, c)) for c in choiced_indexes]
 
             for choiced_index in choiced_indexes:
-                choiced_data_index = random.sample(len(data_group_by_label[indexes[choiced_index]]), k=1)
-                data.append(data_group_by_label[indexes[choiced_index]][choiced_data_index])
+                choiced_data_index = random.sample(range(len(data_group_by_label[indexes[choiced_index]])), k=1)
+                print(choiced_data_index)
+                data.append(data_group_by_label[indexes[choiced_index]][choiced_data_index[0]])
 
             yield np.array(data), np.array(labels)
     return train_func

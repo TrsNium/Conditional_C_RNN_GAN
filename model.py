@@ -88,7 +88,7 @@ class model():
                         
                         g_loss_ += vals["g_loss"]
                         out = vals["out"]
-                        out[out > 127] = 127
+    
                         out = np.transpose(out, (0,2,1)).astype(np.int16) 
                         [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
                     
@@ -114,7 +114,7 @@ class model():
                 r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
                 for step in range(self.args.step_num-1):
                     feed_dict = {}
-                    feed_dict = self._feed_state(self.gen.state_, state_, feed_dict)
+                    feed_dict = self._feed_state(self.gen.state_, g_state_, feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)

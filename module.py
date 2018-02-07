@@ -76,7 +76,6 @@ class Discriminator():
                         o_scope.reuse_variables()
 
                     rnn_out = tf.concat([rnn_output[0][:,t_,:], rnn_output[1][:,t_,:]], axis=-1)
-                    print(rnn_out.get_shape().as_list())
                     logits.append(tf.layers.dense(rnn_out, 1, name="rnn_out_dense"))
             self.logits = tf.transpose(tf.convert_to_tensor(logits), (1,0,2))
     
