@@ -32,13 +32,17 @@ class model():
         d_r = tf.reshape(d_r, [-1, 1])
         d_f = tf.reshape(d_f, [-1, 1])
 
-        self.d_loss = - tf.reduce_mean(tf.log(d_r)) - tf.reduce_mean(tf.log(tf.ones_like(d_f) - d_f))
-        self.g_loss = tf.reduce_mean(tf.log(tf.ones_like(d_f) - d_f))
+        self.d_loss = - tf.reduce_mean(tf.clip_by_value(tf.log(d_r), 10e-8, 10e8)) - tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f) - d_f), 10e-8, 10e8))
+        self.g_loss = tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f) - d_f), 10e-8, 10e8))
 
         tf.summary.scalar("pre_train_loss", self.p_g_loss)
         tf.summary.scalar("discriminator_loss", self.d_loss)
         tf.summary.scalar("generator_loss", self.g_loss)
-    
+        
+        trainable_var = tf.trainable_variables()
+        self.g_var = [var for var in trainable_var if "Generator" in var.name]
+        self.d_var = [var for var in trainable_var if "Discriminator" in var.name]
+
     def _feed_state(self, t_state, state, feed_dict):
         for i, (c, h) in enumerate(t_state):
             feed_dict[c] = state[i].c
@@ -46,11 +50,11 @@ class model():
         return feed_dict
 
     def train(self):
-        optimizer_g_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_g_loss)
+        optimizer_g_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_g_loss, var_list=self.g_var)
         #optimizer_d_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_d_loss)
 
-        optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss)
-        optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss)
+        optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss, var_list=self.g_var)
+        optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss, var_list=self.d_var)
          
         train_func = mk_train_func(self.args.batch_size, self.args.step_num, self.args.max_time_step, self.args.fs, self.args.range)
     

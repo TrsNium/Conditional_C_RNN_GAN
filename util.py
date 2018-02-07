@@ -57,7 +57,6 @@ def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
 
 def read_midi_as_piano_roll(fn, fs):
     print(fn)
-    p_m = pretty_midi.PrettyMIDI(fn)
     p_r = p_m.get_piano_roll(fs)
     return np.array(p_r).transpose((1,0))
 
@@ -73,7 +72,7 @@ def pre_processing(data_path, fs, step_num, max_time_step, range_):
     data_len = step_num*max_time_step
     empty = np.empty(shape=[0, range_])
     
-    print(roll.shape)
+    #print(roll.shape)
     while True:
         if not empty.shape[0] < data_len:
             break
@@ -114,7 +113,6 @@ def mk_train_func(batch_size, step_num, max_time_step, fs, range_, data_dir="./d
 
             for choiced_index in choiced_indexes:
                 choiced_data_index = random.sample(range(len(data_group_by_label[indexes[choiced_index]])), k=1)
-                print(choiced_data_index)
                 data.append(data_group_by_label[indexes[choiced_index]][choiced_data_index[0]])
 
             yield np.array(data), np.array(labels)
