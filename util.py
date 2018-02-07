@@ -56,8 +56,8 @@ def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
     return pm
 
 def read_midi_as_piano_roll(fn, fs):
-    print(fn)
-    p_r = p_m.get_piano_roll(fs)
+    p_m = pretty_midi.PrettyMIDI(fn)
+    p_r = p_m.get_piano_roll(fs)             
     return np.array(p_r).transpose((1,0))
 
 def check_file(fn):

@@ -29,11 +29,19 @@ class model():
         d_r, self.d_r_state = self.real_dis._logits()
         d_f, self.d_f_state = self.fake_dis._logits()
         
-        d_r = tf.reshape(d_r, [-1, 1])
-        d_f = tf.reshape(d_f, [-1, 1])
+        #calcurate Discriminator loss 
+        d_loss = []
+        for t_ in range(args.max_time_step):
+            loss = -tf.reduce_mean(tf.clip_by_value(tf.log(d_r[:,t_,:]), 10e-8, 10e8) - tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e8))                
+            d_loss.append(loss)
+        self.d_loss = tf.reduce_mean(tf.convert_to_tensor(d_loss))
 
-        self.d_loss = - tf.reduce_mean(tf.clip_by_value(tf.log(d_r), 10e-8, 10e8)) - tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f) - d_f), 10e-8, 10e8))
-        self.g_loss = tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f) - d_f), 10e-8, 10e8))
+        #calcurate Generator loss
+        g_loss = []
+        for t_ in range(args.max_time_step):
+            loss = tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e10))
+            g_loss.append(loss)
+        self.g_loss = tf.reduce_mean(tf.convert_to_tensor(g_loss))
 
         tf.summary.scalar("pre_train_loss", self.p_g_loss)
         tf.summary.scalar("discriminator_loss", self.d_loss)
