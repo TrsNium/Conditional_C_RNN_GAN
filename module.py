@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-
 def define_cell(rnn_size, keep_prob, name):
     cell_ = tf.contrib.rnn.BasicLSTMCell(rnn_size, state_is_tuple=True, reuse=tf.get_variable_scope().reuse, name=name)
     if keep_prob < 1.:
@@ -54,9 +53,9 @@ class Discriminator():
                     if t_ != 0:
                         i_scope.reuse_variables()
                 
-                    input_ = tf.concat([x[:,t,:], label], axis=-1)
-                    rnn_input_.append(tf.layers.dense(input_, args.dis_rnn_size, tf.nn.relu))
-            rnn_input_ = tf.convert_to_tensor(rnn_input_)
+                    input_ = tf.concat([x[:,t_,:], label], axis=-1)
+                    rnn_input_.append(tf.layers.dense(input_, args.dis_rnn_size, tf.nn.relu, name="rnn_in_dense"))
+            rnn_input_ = tf.transpose(tf.convert_to_tensor(rnn_input_), (1,0,2)) 
 
             fw = tf.contrib.rnn.MultiRNNCell([define_cell(args.dis_rnn_size, args.keep_prob, "dis_f_{}_lstm".format(l)) for l in range(args.num_layers_d)], state_is_tuple=True)
             bw = tf.contrib.rnn.MultiRNNCell([define_cell(args.dis_rnn_size, args.keep_prob, "dis_b_{}_lstm".format(l)) for l in range(args.num_layers_d)], state_is_tuple=True)
@@ -73,11 +72,13 @@ class Discriminator():
             logits = []
             with tf.variable_scope("rnn_out_dense") as o_scope:
                 for t_ in range(self.args.max_time_step):
-                    if not t_ != 0:
+                    if t_ != 0 or reuse:
                         o_scope.reuse_variables()
+
                     rnn_out = tf.concat([rnn_output[0][:,t_,:], rnn_output[1][:,t_,:]], axis=-1)
+                    print(rnn_out.get_shape().as_list())
                     logits.append(tf.layers.dense(rnn_out, 1, name="rnn_out_dense"))
-            self.logits = tf.convert_to_tensor(logits)
+            self.logits = tf.transpose(tf.convert_to_tensor(logits), (1,0,2))
     
     def _logits(self):
         return self.logits, self.final_state
