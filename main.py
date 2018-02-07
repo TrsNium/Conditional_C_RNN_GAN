@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretraining", dest="pretraining", type=bool, default=False)
     parser.add_argument("--pre_train_done", dest="pre_train_done", type=bool, default=False)
     parser.add_argument("--fs", dest="fs", type=int, default=1)
-    parser.add_argument("--l_dim", dest="l_dim", type=int, default=3)
+    parser.add_argument("--l_dim", dest="l_dim", type=int, default=5)
     parser.add_argument("--pretrain_itrs", dest="pretrain_itrs", type=int, default=3001)
     parser.add_argument("--batch_size", dest="batch_size", type=int, default=5)
     parser.add_argument("--max_time_step", dest="max_time_step", type=int, default=120)

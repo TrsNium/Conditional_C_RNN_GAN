@@ -1,4 +1,4 @@
-import tensorflow as tf
+
 from module import *
 import os
 from util import *
@@ -48,6 +48,7 @@ class model():
     def train(self):
         optimizer_g_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_g_loss)
         #optimizer_d_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_d_loss)
+
         optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss)
         optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss)
          
@@ -119,7 +120,7 @@ class model():
                     feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
                     feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
-                    feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*args.max_time_step,:]
+                    feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
                     feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
                     feed_dict[self.l_inputs] = label
 
@@ -132,8 +133,8 @@ class model():
                 g_loss /= self.args.step_num
                 d_loss /= self.args.step_num
                 if itr % 5 == 0:
-                    print(itr_, ":   g_loss:", g_loss, "   d_loss:", d_loss)
-                    train_graph.add_summary(summary, itr_)
+                    print(itr , ":   g_loss:", g_loss, "   d_loss:", d_loss)
+                    #train_graph.add_summary(summary, itr)
 
                 if itr % 20 == 0:
                     saver.save(sess, self.args.train_path+"model.ckpt")
