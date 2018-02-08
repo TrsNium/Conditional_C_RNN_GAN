@@ -92,7 +92,6 @@ class model():
                         g_loss_ += loss
 
                         out = np.transpose(out, (0,2,1)).astype(np.int16)
-                        #out = out*127
                         out[out>127]=127
                         [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
                     
@@ -165,7 +164,7 @@ class model():
                 fake_, state_ = sess.run([self.fake_x, self.gen.final_state], feed_dict)
                 results.append(fake_)
 
-            results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)*127
+            results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)
             results[results > 127] = 127
             print(results[results>0.])
             piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(1))
