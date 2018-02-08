@@ -19,7 +19,6 @@ class model():
         self.p_g_logits, self.p_g_state, self.p_r_loss = self.p_gen._logits()
         self.p_g_loss = tf.reduce_mean(tf.squared_difference(self.p_g_logits, self.real_x)) + self.p_r_loss
         
-        #training models
         self.gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse = True)
         self.fake_x, self.g_state, _ = self.gen._logits()
 
@@ -75,48 +74,37 @@ class model():
             sess.run(tf.global_variables_initializer())
         
             if self.args.pretraining and not self.args.pre_train_done:
-                print("pre-training開始")
+                print("-________'start pre-training'________-")
                 saver_ = tf.train.Saver(tf.global_variables())
                 
-                feches = {
-                    "out": self.p_g_loss,
-                    "g_loss": self.p_g_loss,
-                    "optimizer_g": optimizer_g_p,
-                    "final_state": self.p_gen.p_g_state
-                }
-
                 for itr, (data, label) in enumerate(train_func()):
-                    inputs_, labels_ = mk_pretrain_batch(self.args.step_num, self.args.input_norm)
                     g_loss_ = 0.
-                    d_loss_ = 0.
-                    state_ = sess.run(self.gen.state_)
+            
+                    state_ = sess.run(self.p_gen.state_)
                     for step in range(self.args.step_num-1):
                         feed_dict ={}
-                        feed_dict = self._feed_state(self.gen_state_, state_, feed_dict)
+                        feed_dict = self._feed_state(self.p_gen.state_, state_, feed_dict)
                         feed_dict[self.real_x] = data[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
                         feed_dict[self.l_inputs] = label
                         feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
-                        vals = sess.run(feches, feed_dict)    
-                        state_ = vals["final_state"]
-                        
-                        g_loss_ += vals["g_loss"]
-                        out = vals["out"]
-    
+                        out, loss, state_, _  = sess.run([self.p_g_logits, self.p_g_loss, self.p_g_state, optimizer_g_p], feed_dict)
+                        g_loss_ += loss
+
                         out = np.transpose(out, (0,2,1)).astype(np.int16) 
-                        [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
+                        [piano_roll_to_pretty_midi(out[i,:,:]*127, self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
                     
-                    if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.pretrain_itrs,"     d_loss:",d_loss_/self.args.pretrain_itrs)
+                    if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.step_num)
                     if itr % 200 == 0:saver_.save(sess, os.path.join(self.args.pre_train_path, "model.ckpt"))
                     if itr == self.args.pretrain_itrs: break
                 print("pre trainingおわり")
             elif self.args.pretraining and self.args.pre_train_done:
                 if not os.path.exists(self.args.pre_train_path):
-                    print("checkpoint がない，始めからやり直し")
+                    print("Doesn't exit pre trained model check point")
                     return
 
                 saver_ = tf.train.Saver(tf.get_collection(tf.GraphKeys.VARIABLES, scope='Generator'))
                 saver_.restore(sess, os.path.join(self.args.pre_train_path, "model.ckpt"))
-                print("restoreおわり")                
+                print("restore done")                
             
             saver = tf.train.Saver(tf.global_variables())
             for itr, (data, label) in enumerate(train_func()):
