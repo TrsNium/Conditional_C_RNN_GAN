@@ -159,13 +159,12 @@ class model():
             for step in range(self.args.step_num):
                 feed_dict={}
                 feed_dict = self._feed_state(self.gen.state_, state_, feed_dict)
-                feed_dict[self.z_inputs] = np.random.rand(1, self.args.max_time_step, self.args.z_dim)
-                feed_dict[self.l_inputs] = [[0,0,0,0,1]]
+                feed_dict[self.z_inputs] = np.random.rand(5, self.args.max_time_step, self.args.z_dim)
+                feed_dict[self.l_inputs] = [[0,0,0,0,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,0,0,0,0]]
                 fake_, state_ = sess.run([self.fake_x, self.gen.final_state], feed_dict)
                 results.append(fake_)
 
             results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)
             results[results > 127] = 127
-            print(results[results>0.])
-            piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(1))
+            [piano_roll_to_pretty_midi(results[i,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(i)) for i in range(5)] 
         return np.transpose(results, (0,2,1))
