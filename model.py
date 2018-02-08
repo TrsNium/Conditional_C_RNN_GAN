@@ -16,14 +16,14 @@ class model():
 
         #pre training G
         self.p_gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse=False)
-        _, self.p_g_logits, self.p_g_state, self.p_r_loss = self.p_gen._logits()
-        self.p_g_loss = tf.reduce_mean(tf.squared_difference(self.p_g_logits, self.real_x)) + self.p_r_loss
+        self.p_g_logits, self.p_g_state, self.p_r_loss = self.p_gen._logits()
+        self.p_g_loss = tf.reduce_mean(tf.squared_difference(self.p_g_logits, self.real_x)) #+ self.p_r_loss
         
         self.gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse = True)
-        logits, self.fake_x, self.g_state, _ = self.gen._logits()
+        self.fake_x, self.g_state, _ = self.gen._logits()
 
         self.real_dis = Discriminator(args, self.real_x, self.l_inputs, name="Discriminator", reuse=False)
-        self.fake_dis = Discriminator(args, logits, self.l_inputs, name="Discriminator", reuse=True)
+        self.fake_dis = Discriminator(args, self.fake_x, self.l_inputs, name="Discriminator", reuse=True)
         
         d_r, self.d_r_state = self.real_dis._logits()
         d_f, self.d_f_state = self.fake_dis._logits()
@@ -59,11 +59,10 @@ class model():
         return feed_dict
 
     def train(self):
-        optimizer_g_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_g_loss, var_list=self.g_var)
-        #optimizer_d_p = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.p_d_loss)
+        optimizer_g_p = tf.train.AdamOptimizer(self.args.lr).minimize(self.p_g_loss, var_list=self.g_var)
 
-        optimizer_g = tf.train.GradientDescentOptimizer(self.args.lr).minimize(self.g_loss, var_list=self.g_var)
-        optimizer_d = tf.train.GradientDescentOptimizer(self.args.d_lr).minimize(self.d_loss, var_list=self.d_var)
+        optimizer_g = tf.train.AdamOptimizer(self.args.lr).minimize(self.g_loss, var_list=self.g_var)
+        optimizer_d = tf.train.AdamOptimizer(self.args.d_lr).minimize(self.d_loss, var_list=self.d_var)
          
         train_func = mk_train_func(self.args.batch_size, self.args.step_num, self.args.max_time_step, self.args.fs, self.args.range)
     
@@ -92,10 +91,13 @@ class model():
                         out, loss, state_, _  = sess.run([self.p_g_logits, self.p_g_loss, self.p_g_state, optimizer_g_p], feed_dict)
                         g_loss_ += loss
 
-                        out = np.transpose(out, (0,2,1)).astype(np.int16) 
-                        [piano_roll_to_pretty_midi(out[i,:,:]*127, self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
+                        out = np.transpose(out, (0,2,1)).astype(np.int16)
+                        #out = out*127
+                        out[out>127]=127
+                        [piano_roll_to_pretty_midi(out[i,:,:], self.args.fs, 0).write("./generated_mid/p_midi_{}.mid".format(i)) for i in range(self.args.batch_size)] 
                     
                     if itr % 100 == 0:print("itr", itr, "     g_loss:",g_loss_/self.args.step_num)
+                    if itr % 100 == 0:print(out[out>0.])
                     if itr % 200 == 0:saver_.save(sess, os.path.join(self.args.pre_train_path, "model.ckpt"))
                     if itr == self.args.pretrain_itrs: break
                 print("pre trainingおわり")
@@ -165,5 +167,6 @@ class model():
 
             results = np.transpose(np.concatenate(results, axis=1), (0,2,1)).astype(np.int16)*127
             results[results > 127] = 127
+            print(results[results>0.])
             piano_roll_to_pretty_midi(results[0,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(1))
-            return np.transpose(results, (0,2,1))
+        return np.transpose(results, (0,2,1))
