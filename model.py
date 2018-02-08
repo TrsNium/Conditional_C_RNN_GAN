@@ -16,14 +16,14 @@ class model():
 
         #pre training G
         self.p_gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse=False)
-        self.p_g_logits, self.p_g_state, self.p_r_loss = self.p_gen._logits()
+        _, self.p_g_logits, self.p_g_state, self.p_r_loss = self.p_gen._logits()
         self.p_g_loss = tf.reduce_mean(tf.squared_difference(self.p_g_logits, self.real_x)) + self.p_r_loss
         
         self.gen = Generator(args, self.z_inputs, self.l_inputs, name="Generator", reuse = True)
-        self.fake_x, self.g_state, _ = self.gen._logits()
+        logits, self.fake_x, self.g_state, _ = self.gen._logits()
 
         self.real_dis = Discriminator(args, self.real_x, self.l_inputs, name="Discriminator", reuse=False)
-        self.fake_dis = Discriminator(args, self.fake_x, self.l_inputs, name="Discriminator", reuse=True)
+        self.fake_dis = Discriminator(args, logits, self.l_inputs, name="Discriminator", reuse=True)
         
         d_r, self.d_r_state = self.real_dis._logits()
         d_f, self.d_f_state = self.fake_dis._logits()
@@ -31,14 +31,16 @@ class model():
         #calcurate Discriminator loss 
         d_loss = []
         for t_ in range(args.max_time_step):
-            loss = -tf.reduce_mean(tf.clip_by_value(tf.log(d_r[:,t_,:]), 10e-8, 10e8) - tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e8))                
+            #loss = -tf.reduce_mean(tf.clip_by_value(tf.log(d_r[:,t_,:]), 10e-8, 10e8) - tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e8))                
+            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_r, labels=tf.ones_like(d_r))) + tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_f, labels=tf.zeros_like(d_f)))
             d_loss.append(loss)
         self.d_loss = tf.reduce_mean(tf.convert_to_tensor(d_loss))
 
         #calcurate Generator loss
         g_loss = []
         for t_ in range(args.max_time_step):
-            loss = tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e10))
+            #loss = tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e10))
+            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_f, labels=tf.ones_like(d_f)))
             g_loss.append(loss)
         self.g_loss = tf.reduce_mean(tf.convert_to_tensor(g_loss))
 

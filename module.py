@@ -17,6 +17,7 @@ class Generator():
          
             self.state_ = cell_.zero_state(batch_size=args.batch_size, dtype=tf.float32)
             t_state_ = self.state_
+            logits = []
             outputs = []
             with tf.variable_scope("rnn") as rnn_scope:
                 for t_ in range(args.max_time_step):
@@ -26,17 +27,19 @@ class Generator():
                     input_ = tf.concat([z_inputs[:,t_,:], l_inputs], axis=-1)
                     rnn_input_ = tf.layers.dense(input_, args.gen_rnn_input_size, tf.nn.relu, name="RNN_INPUT_DENSE")
                     rnn_output_, t_state_ = cell_(rnn_input_, t_state_)
-                    output_ = tf.layers.dense(rnn_output_, args.range, name="RNN_OUT_DENSE")
-                    outputs.append(output_)
+                    logit = tf.layers.dense(rnn_output_, args.range, name="RNN_OUT_DENSE")
+                    logits.append(logit)
+                    outputs.append(tf.nn.sigmoid(logit))
        
             self.final_state = t_state_
+            self.logits = tf.transpose(tf.stack(logits), (1,0,2))
             self.outputs = tf.transpose(tf.stack(outputs), (1,0,2))
 
             reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
             self.reg_loss = args.reg_constant * sum(reg_losses)
 
     def _logits(self):
-        return self.outputs, self.final_state, self.reg_loss
+        return self.logits, self.outputs, self.final_state, self.reg_loss
 
 class Discriminator():
     def __init__(self, args, x, label, name="Discriminator", reuse=False):
