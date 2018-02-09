@@ -137,6 +137,7 @@ class model():
                 g_state_ = sess.run(self.gen.state_)
                 f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
                 r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
+                fake = []
                 for step in range(self.args.step_num):
                     feed_dict = {}
                     feed_dict = self._feed_state(self.gen.state_, g_state_, feed_dict)
@@ -147,18 +148,22 @@ class model():
                     feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
                     feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
                     feed_dict[self.l_inputs] = label
-                    g_loss_, g_state_, _ = sess.run([self.g_loss, self.gen.final_state, optimizer_g], feed_dict)
+                    g_loss_, g_state_, _, f = sess.run([self.g_loss, self.gen.final_state, optimizer_g, self.fake_x], feed_dict)
                     g_loss += g_loss_
+                    fake.append(f)
             
                 g_loss /= (self.args.step_num)
                 d_loss /= (self.args.step_num)
                 if itr % 5 == 0:
                     print(itr , ":   g_loss:", g_loss, "   d_loss:", d_loss/self.args.ncritic)
 
-                if itr % 20 == 0:
-                    saver.save(sess, self.args.train_path+"model.ckpt")
+                if itr % 10 == 0:
+                    saver.save(sess, os.path.join(self.args.train_path,"model1.ckpt"))
                     print("-------------------saved model---------------------")
-                
+                    fake = np.transpose(np.concatenate(fake, axis=1), (0,2,1)).astype(np.int16)
+                    fake[fake > 127] = 127
+                    [piano_roll_to_pretty_midi(fake[i,:,:], self.args.fs, 0).write("./generated_mid/midi_{}.mid".format(i)) for i in range(self.args.batch_size)]
+
                 if itr == self.args.train_itrs:
                     break
 
@@ -168,7 +173,7 @@ class model():
         config.log_device_placement = True
         with tf.Session(config=config) as sess:
             saver = tf.train.Saver(tf.global_variables())
-            saver.restore(sess, self.args.train_path+"model.ckpt")
+            saver.restore(sess, os.path.join(self.args.train_path,"model1.ckpt"))
 
             results = []
             state_ = sess.run(self.gen.state_)
