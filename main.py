@@ -29,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument("--reg_constant", dest="reg_constant", type=float, default=0.5)
     parser.add_argument("--input_norm", dest="input_norm", type=bool, default=False)
     parser.add_argument("--z_dim", dest="z_dim", type=int, default=32)
+    parser.add_argument("--c", dest="c", type=float, default=0.01)
     args = parser.parse_args()
 
     if not os.path.exists("generated_mid"):

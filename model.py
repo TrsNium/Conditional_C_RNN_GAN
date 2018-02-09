@@ -50,6 +50,7 @@ class model():
         
         trainable_var = tf.trainable_variables()
         self.g_var = [var for var in trainable_var if "Generator" in var.name]
+        self.clip = [tf.clip_by_value(var, -args.c, args.c) for var in self.g_var]
         self.d_var = [var for var in trainable_var if "Discriminator" in var.name]
 
     def _feed_state(self, t_state, state, feed_dict):
