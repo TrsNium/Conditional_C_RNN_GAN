@@ -81,7 +81,7 @@ class model():
                     g_loss_ = 0.
             
                     state_ = sess.run(self.p_gen.state_)
-                    for step in range(self.args.step_num-1):
+                    for step in range(self.args.step_num):
                         feed_dict ={}
                         feed_dict = self._feed_state(self.p_gen.state_, state_, feed_dict)
                         feed_dict[self.real_x] = data[:,step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
@@ -119,7 +119,7 @@ class model():
                     g_state_ = sess.run(self.gen.state_)
                     f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
                     r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
-                    for step in range(self.args.step_num-1):
+                    for step in range(self.args.step_num):
                         feed_dict = {}
                         feed_dict = self._feed_state(self.gen.state_, g_state_, feed_dict)
                         feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
@@ -137,7 +137,7 @@ class model():
                 g_state_ = sess.run(self.gen.state_)
                 f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
                 r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
-                for step in range(self.args.step_num-1):
+                for step in range(self.args.step_num):
                     feed_dict = {}
                     feed_dict = self._feed_state(self.gen.state_, g_state_, feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
@@ -150,8 +150,8 @@ class model():
                     g_loss_, g_state_, _ = sess.run([self.g_loss, self.gen.final_state, optimizer_g], feed_dict)
                     g_loss += g_loss_
             
-                g_loss /= (self.args.step_num-1)
-                d_loss /= (self.args.step_num-1)
+                g_loss /= (self.args.step_num)
+                d_loss /= (self.args.step_num)
                 if itr % 5 == 0:
                     print(itr , ":   g_loss:", g_loss, "   d_loss:", d_loss/self.args.ncritic)
 
