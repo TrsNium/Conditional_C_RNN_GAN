@@ -30,19 +30,17 @@ class model():
         
         #calcurate Discriminator loss 
         d_loss = []
-        for t_ in range(args.max_time_step):
-            #loss = -tf.reduce_mean(tf.clip_by_value(tf.log(d_r[:,t_,:]), 10e-8, 10e8) - tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e8))                
-            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_r, labels=tf.ones_like(d_r))) + tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_f, labels=tf.zeros_like(d_f)))
+        for t_ in range(args.max_time_step):                
+            loss = -tf.reduce_mean(d_r - d_f)
             d_loss.append(loss)
-        self.d_loss = tf.reduce_mean(tf.convert_to_tensor(d_loss))
+        self.d_loss = tf.reduce_sum(tf.convert_to_tensor(d_loss))
 
         #calcurate Generator loss
         g_loss = []
         for t_ in range(args.max_time_step):
-            #loss = tf.reduce_mean(tf.clip_by_value(tf.log(tf.ones_like(d_f[:,t_,:])-d_f[:,t_,:]), 10e-8, 10e10))
-            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_f, labels=tf.ones_like(d_f)))
+            loss = -tf.reduce_mean(d_f)
             g_loss.append(loss)
-        self.g_loss = tf.reduce_mean(tf.convert_to_tensor(g_loss))
+        self.g_loss = tf.reduce_sum(tf.convert_to_tensor(g_loss))
 
         tf.summary.scalar("pre_train_loss", self.p_g_loss)
         tf.summary.scalar("discriminator_loss", self.d_loss)
@@ -50,8 +48,8 @@ class model():
         
         trainable_var = tf.trainable_variables()
         self.g_var = [var for var in trainable_var if "Generator" in var.name]
-        self.clip = [tf.clip_by_value(var, -args.c, args.c) for var in self.g_var]
         self.d_var = [var for var in trainable_var if "Discriminator" in var.name]
+        self.clip = [tf.clip_by_value(var, -args.c, args.c) for var in self.d_var] 
 
     def _feed_state(self, t_state, state, feed_dict):
         for i, (c, h) in enumerate(t_state):
@@ -62,8 +60,8 @@ class model():
     def train(self):
         optimizer_g_p = tf.train.AdamOptimizer(self.args.lr).minimize(self.p_g_loss, var_list=self.g_var)
 
-        optimizer_g = tf.train.AdamOptimizer(self.args.lr).minimize(self.g_loss, var_list=self.g_var)
-        optimizer_d = tf.train.AdamOptimizer(self.args.d_lr).minimize(self.d_loss, var_list=self.d_var)
+        optimizer_g = tf.train.RMSPropOptimizer(self.args.lr).minimize(self.g_loss, var_list=self.g_var)
+        optimizer_d = tf.train.RMSPropOptimizer(self.args.d_lr).minimize(self.d_loss, var_list=self.d_var)
          
         train_func = mk_train_func(self.args.batch_size, self.args.step_num, self.args.max_time_step, self.args.fs, self.args.range)
     
@@ -111,9 +109,31 @@ class model():
                 print("restore done")                
             
             saver = tf.train.Saver(tf.global_variables())
-            for itr, (data, label) in enumerate(train_func()):
+            data_gen = train_func()
+            for itr in range(self.args.train_itrs):
                 g_loss, d_loss = [0., 0.]
                 
+                # train generator
+                for _ in range(self.args.ncritic):
+                    data, label = data_gen.__next__()
+                    g_state_ = sess.run(self.gen.state_)
+                    f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
+                    r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
+                    for step in range(self.args.step_num-1):
+                        feed_dict = {}
+                        feed_dict = self._feed_state(self.gen.state_, g_state_, feed_dict)
+                        feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
+                        feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
+                        feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
+                        feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
+                        feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
+                        feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
+                        feed_dict[self.l_inputs] = label
+                        d_loss_, f_d_state_, r_d_state, _, _ = sess.run([self.d_loss, self.d_f_state, self.d_r_state, optimizer_d, self.clip], feed_dict)
+                        d_loss += d_loss_
+                
+                # train discriminator
+                data, label = data_gen.__next__()
                 g_state_ = sess.run(self.gen.state_)
                 f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
                 r_d_state_ = (sess.run(self.real_dis.fw_state), sess.run(self.real_dis.bw_state))
@@ -127,18 +147,13 @@ class model():
                     feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
                     feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
                     feed_dict[self.l_inputs] = label
-
                     g_loss_, g_state_, _ = sess.run([self.g_loss, self.gen.final_state, optimizer_g], feed_dict)
-                    d_loss_, f_d_state_, r_d_state, _ = sess.run([self.d_loss, self.d_f_state, self.d_r_state, optimizer_d], feed_dict)
-                    
                     g_loss += g_loss_
-                    d_loss += d_loss_
             
-                g_loss /= self.args.step_num
-                d_loss /= self.args.step_num
+                g_loss /= (self.args.step_num-1)
+                d_loss /= (self.args.step_num-1)
                 if itr % 5 == 0:
-                    print(itr , ":   g_loss:", g_loss, "   d_loss:", d_loss)
-                    #train_graph.add_summary(summary, itr)
+                    print(itr , ":   g_loss:", g_loss, "   d_loss:", d_loss/self.args.ncritic)
 
                 if itr % 20 == 0:
                     saver.save(sess, self.args.train_path+"model.ckpt")
