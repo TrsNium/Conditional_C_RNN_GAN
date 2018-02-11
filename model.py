@@ -113,7 +113,7 @@ class model():
             for itr in range(self.args.train_itrs):
                 g_loss, d_loss = [0., 0.]
                 
-                # train generator
+                # train Discriminator
                 for _ in range(self.args.ncritic):
                     data, label = data_gen.__next__()
                     g_state_ = sess.run(self.gen.state_)
@@ -132,7 +132,7 @@ class model():
                         d_loss_, f_d_state_, r_d_state, _, _ = sess.run([self.d_loss, self.d_f_state, self.d_r_state, optimizer_d, self.clip], feed_dict)
                         d_loss += d_loss_
                 
-                # train discriminator
+                # train Generator
                 data, label = data_gen.__next__()
                 g_state_ = sess.run(self.gen.state_)
                 f_d_state_ = (sess.run(self.fake_dis.fw_state), sess.run(self.fake_dis.bw_state))
@@ -143,8 +143,8 @@ class model():
                     feed_dict = self._feed_state(self.gen.state_, g_state_, feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.fw_state, f_d_state_[0], feed_dict)
                     feed_dict = self._feed_state(self.fake_dis.bw_state, f_d_state_[1], feed_dict)
-                    feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
-                    feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
+                    #feed_dict = self._feed_state(self.real_dis.fw_state, r_d_state_[0], feed_dict)
+                    #feed_dict = self._feed_state(self.real_dis.bw_state, r_d_state_[1], feed_dict)
                     feed_dict[self.real_x] =  data[:, step*self.args.max_time_step:(step+1)*self.args.max_time_step,:]
                     feed_dict[self.z_inputs] = np.random.rand(self.args.batch_size, self.args.max_time_step, self.args.z_dim)
                     feed_dict[self.l_inputs] = label

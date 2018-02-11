@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_layers_g", dest="num_layers_g", type=int, default=2)
     parser.add_argument("--num_layers_d", dest="num_layers_d", type=int, default=2)
     parser.add_argument("--gen_rnn_size", dest="gen_rnn_size", type=int, default=350)
-    parser.add_argument("--dis_rnn_size", dest="dis_rnn_size", type=int, default=350)
+    parser.add_argument("--dis_rnn_size", dest="dis_rnn_size", type=int, default=512)
     parser.add_argument("--keep_prob", dest="keep_prob", type=float, default=0.56)
     parser.add_argument("--gen_rnn_input_size", dest="gen_rnn_input_size", type=int, default=128)
     parser.add_argument("--reg_constant", dest="reg_constant", type=float, default=0.5)
